@@ -1,17 +1,19 @@
 import React, { useState } from 'react';
-import { CheckCircle2, CreditCard, MapPin, Package, User, Truck } from 'lucide-react';
+import { CheckCircle2, CreditCard, MapPin, Package, Truck, AlertCircle } from 'lucide-react';
 import { useCart } from '../../context/CartContext';
 import { useAuth } from '../../context/AuthContext';
+import api from '../../services/api';
 
 interface CheckoutFlowProps {
   onComplete: () => void;
 }
 
 const CheckoutFlow: React.FC<CheckoutFlowProps> = ({ onComplete }) => {
-  const { cart, cartTotal, clearCart } = useCart();
-  const { user } = useAuth();
+  const { cart, cartTotal, clearCart, removeFromCart } = useCart();
+  const { user, isAuthenticated } = useAuth();
   const [step, setStep] = useState(1);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [error, setError] = useState('');
 
   if (cart.length === 0) {
     return (
@@ -19,18 +21,60 @@ const CheckoutFlow: React.FC<CheckoutFlowProps> = ({ onComplete }) => {
         <Package size={64} className="mx-auto text-secondary-300 mb-4" />
         <h2 className="text-2xl font-bold text-secondary-900 mb-2">Your cart is empty</h2>
         <p className="text-secondary-500 mb-8">Please add some items to your cart to proceed with checkout.</p>
-        <a href="/products" className="btn-primary px-8 py-3">Return to Shop</a>
+        <a href="/products" className="btn-primary px-8 py-3 inline-block">Return to Shop</a>
       </div>
     );
   }
 
-  const handlePayment = async () => {
+  const handlePlaceOrder = async () => {
+    setError('');
+    if (!isAuthenticated) {
+      setError('Please log in with a buyer account to place your order.');
+      return;
+    }
+    if (user?.role !== 'buyer') {
+      setError('Only buyer accounts can place orders. Please log out and sign in as a buyer.');
+      return;
+    }
+
     setIsProcessing(true);
-    // Simulate payment processing
-    await new Promise(resolve => setTimeout(resolve, 2000));
+    const failed: string[] = [];
+    const chargedTotal = cartTotal;
+
+    for (const item of cart) {
+      try {
+        await api.post('/orders', { productId: item.id, quantity: item.quantity });
+      } catch (err: any) {
+        const msg = err?.response?.data?.message || 'Failed to place order';
+        failed.push(`${item.name}: ${msg}`);
+      }
+    }
+
+    // Remove successfully ordered items from the cart (failed ones stay for retry)
+    for (const item of cart) {
+      if (!failed.some((f) => f.startsWith(`${item.name}:`))) {
+        removeFromCart(item.id);
+      }
+    }
+
+    setIsProcessing(false);
+
+    if (failed.length > 0) {
+      setError(
+        'Some items could not be ordered — ' +
+          failed.join(' · ') +
+          ' Your cart keeps the remaining items so you can retry.'
+      );
+      return;
+    }
+
+    void chargedTotal;
     clearCart();
     setStep(4);
-    setIsProcessing(false);
+  };
+
+  const continueShopping = () => {
+    setStep(4); // success panel shows after step 4 transition
   };
 
   return (
@@ -59,38 +103,34 @@ const CheckoutFlow: React.FC<CheckoutFlowProps> = ({ onComplete }) => {
           {step === 1 && (
             <div className="bg-white p-8 rounded-2xl border border-secondary-200 shadow-sm animate-in slide-in-from-bottom-4">
               <h3 className="text-xl font-bold text-secondary-900 mb-6 flex items-center gap-2">
-                <MapPin className="text-primary-600" /> Shipping Details
+                <MapPin className="text-primary-600" /> Delivery Details
               </h3>
+              {!isAuthenticated && (
+                <div className="mb-6 p-3 rounded-lg bg-amber-50 text-amber-700 text-sm font-medium border border-amber-100 flex items-start gap-2">
+                  <AlertCircle size={18} className="shrink-0 mt-0.5" />
+                  <span>You are not logged in. You will need to sign in as a buyer before the order can be submitted.</span>
+                </div>
+              )}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="col-span-2">
                   <label className="block text-sm font-medium text-secondary-700 mb-1">Full Name</label>
-                  <input type="text" defaultValue={user?.fullName} className="input-field" />
+                  <input type="text" defaultValue={user?.fullName} className="input-field" placeholder="Your name" />
                 </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="col-span-2">
                   <label className="block text-sm font-medium text-secondary-700 mb-1">Street Address</label>
-                  <input type="text" defaultValue={user?.address?.street} className="input-field" />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-secondary-700 mb-1">Suburb</label>
-                  <input type="text" defaultValue={user?.address?.suburb} className="input-field" />
+                  <input type="text" className="input-field" placeholder="123 Farm Road" />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-secondary-700 mb-1">City</label>
-                  <input type="text" defaultValue={user?.address?.city} className="input-field" />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-secondary-700 mb-1">Province</label>
-                  <input type="text" defaultValue={user?.address?.province} className="input-field" />
+                  <input type="text" className="input-field" placeholder="Cape Town" />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-secondary-700 mb-1">Postal Code</label>
-                  <input type="text" defaultValue={user?.address?.postalCode} className="input-field" />
+                  <input type="text" className="input-field" placeholder="8001" />
                 </div>
               </div>
-              </div>
-              <button onClick={() => setStep(2)} className="btn-primary w-full py-3 mt-8 flex items-center justify-center gap-2">
-                Continue to Payment <ArrowRight size={18} />
+              <button onClick={() => setStep(2)} className="btn-primary w-full py-3 mt-8">
+                Continue to Payment
               </button>
             </div>
           )}
@@ -107,20 +147,20 @@ const CheckoutFlow: React.FC<CheckoutFlowProps> = ({ onComplete }) => {
                       <CreditCard size={20} className="text-primary-600" />
                     </div>
                     <div>
-                      <p className="font-bold text-secondary-900">Credit/Debit Card</p>
-                      <p className="text-xs text-secondary-500">Visa, Mastercard, Maestro</p>
+                      <p className="font-bold text-secondary-900">Card / Instant EFT</p>
+                      <p className="text-xs text-secondary-500">Demo checkout — no real payment is processed</p>
                     </div>
                   </div>
                   <div className="w-5 h-5 rounded-full border-4 border-primary-600" />
                 </div>
-                <div className="p-4 border border-secondary-200 rounded-xl flex items-center justify-between cursor-pointer hover:border-primary-400 transition-colors">
+                <div className="p-4 border border-secondary-200 rounded-xl flex items-center justify-between">
                   <div className="flex items-center gap-3">
                     <div className="p-2 bg-secondary-50 rounded-lg shadow-sm">
                       <Truck size={20} className="text-secondary-600" />
                     </div>
                     <div>
-                      <p className="font-bold text-secondary-900">Instant EFT</p>
-                      <p className="text-xs text-secondary-500">Ozow, PayFast, Peach Payments</p>
+                      <p className="font-bold text-secondary-900">Pay on Delivery</p>
+                      <p className="text-xs text-secondary-500">Cash or card when your produce arrives</p>
                     </div>
                   </div>
                   <div className="w-5 h-5 rounded-full border-2 border-secondary-300" />
@@ -141,8 +181,12 @@ const CheckoutFlow: React.FC<CheckoutFlowProps> = ({ onComplete }) => {
               <div className="space-y-4 mb-8">
                 {cart.map(item => (
                   <div key={item.id} className="flex justify-between text-sm">
-                    <span className="text-secondary-600">{item.quantity}x {item.name}</span>
-                    <span className="font-medium text-secondary-900">${(item.price * item.quantity).toFixed(2)}</span>
+                    <span className="text-secondary-600">
+                      {item.quantity}x {item.name}
+                      {item.unit ? ` (${item.unit})` : ''}
+                      {item.farmerName ? ` — ${item.farmerName}` : ''}
+                    </span>
+                    <span className="font-medium text-secondary-900">R{(item.price * item.quantity).toFixed(2)}</span>
                   </div>
                 ))}
                 <div className="border-t border-secondary-100 pt-4 flex justify-between font-bold text-lg">
@@ -150,14 +194,26 @@ const CheckoutFlow: React.FC<CheckoutFlowProps> = ({ onComplete }) => {
                   <span>R{cartTotal.toFixed(2)}</span>
                 </div>
               </div>
+              {error && (
+                <div className="mb-6 p-3 rounded-lg bg-red-50 text-red-600 text-xs font-medium border border-red-100">
+                  {error}
+                </div>
+              )}
               <div className="grid grid-cols-2 gap-4">
                 <button onClick={() => setStep(2)} className="btn-secondary py-3">Back to Payment</button>
                 <button
-                  onClick={handlePayment}
+                  onClick={handlePlaceOrder}
                   disabled={isProcessing}
                   className="btn-primary py-3 flex items-center justify-center gap-2"
                 >
-                  {isProcessing ? <Loader2 className="animate-spin" size={18} /> : 'Place Order'}
+                  {isProcessing ? (
+                    <>
+                      <span className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent" />
+                      Placing Orders...
+                    </>
+                  ) : (
+                    'Place Order'
+                  )}
                 </button>
               </div>
             </div>
@@ -169,27 +225,35 @@ const CheckoutFlow: React.FC<CheckoutFlowProps> = ({ onComplete }) => {
                 <CheckCircle2 size={48} />
               </div>
               <h2 className="text-3xl font-bold text-secondary-900 mb-2">Order Placed Successfully!</h2>
-              <p className="text-secondary-500 mb-8">Thank you for supporting local farmers. Your order #FM-92834 is being prepared.</p>
-              <div className="bg-secondary-50 p-6 rounded-2xl border border-secondary-100 max-w-sm mx-auto mb-8 text-left space-y-3">
-                <div className="flex justify-between text-sm">
-                  <span className="text-secondary-500">Estimated Delivery</span>
-                  <span className="font-bold text-secondary-900">Oct 4, 2026</span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-secondary-500">Shipping to</span>
-                  <span className="font-bold text-secondary-900 truncate ml-4">{user?.address?.city}, {user?.address?.state}</span>
-                </div>
-              </div>
+              <p className="text-secondary-500 mb-8">
+                Your orders have been sent to the farmers. Track their progress under “My Orders” in your account.
+              </p>
               <button onClick={onComplete} className="btn-primary px-8 py-3">Return to Home</button>
             </div>
           )}
+        </div>
+
+        {/* Order summary sidebar */}
+        <div className="lg:col-span-1">
+          <div className="bg-white p-6 rounded-2xl border border-secondary-200 shadow-sm sticky top-24">
+            <h4 className="font-bold text-secondary-900 mb-4">Order Summary</h4>
+            <div className="space-y-3 mb-4 max-h-64 overflow-y-auto">
+              {cart.map(item => (
+                <div key={item.id} className="flex justify-between text-sm">
+                  <span className="text-secondary-600 truncate mr-2">{item.quantity}x {item.name}</span>
+                  <span className="font-medium text-secondary-900 shrink-0">R{(item.price * item.quantity).toFixed(2)}</span>
+                </div>
+              ))}
+            </div>
+            <div className="border-t border-secondary-100 pt-4 flex justify-between font-bold">
+              <span>Total</span>
+              <span className="text-primary-600">R{cartTotal.toFixed(2)}</span>
+            </div>
+          </div>
         </div>
       </div>
     </div>
   );
 };
-
-// We need to import Loader2 for the isProcessing state
-import { Loader2, ArrowRight } from 'lucide-react';
 
 export default CheckoutFlow;

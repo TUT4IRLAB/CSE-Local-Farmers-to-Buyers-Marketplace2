@@ -66,7 +66,11 @@ npm start
 - `PATCH /:id/status` - Update order status (Farmer only)
 
 ## Docker Execution
-From the root directory:
+> **Known limitation:** `docker-compose.yml` currently cannot start as-is — the frontend has
+> no Dockerfile, and `backend/.env` must exist before the compose file is used. Until that is
+> fixed, run the backend and frontend directly with `npm run dev` (see the root `README.md`).
+
+From the `farmer to market` directory (once the missing pieces exist):
 ```bash
 docker-compose up --build
 ```

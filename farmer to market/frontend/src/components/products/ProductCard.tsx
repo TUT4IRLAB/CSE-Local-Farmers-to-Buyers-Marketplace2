@@ -1,7 +1,8 @@
 import React from 'react';
 import { Star, Plus } from 'lucide-react';
-import { Product } from '../types';
+import { Product } from '../../types';
 import { useCart } from '../../context/CartContext';
+import { useAuth } from '../../context/AuthContext';
 
 interface ProductCardProps {
   product: Product;
@@ -10,6 +11,8 @@ interface ProductCardProps {
 
 const ProductCard: React.FC<ProductCardProps> = ({ product, onDetailClick }) => {
   const { addToCart } = useCart();
+  const { user, isAuthenticated } = useAuth();
+  const canShop = !isAuthenticated || user?.role === 'buyer';
 
   const handleAddToCart = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -39,30 +42,41 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, onDetailClick }) => 
         />
         <div className="absolute top-3 right-3">
           <span className="bg-white/90 backdrop-blur-sm text-secondary-900 text-xs font-bold px-2 py-1 rounded-full shadow-sm">
-            R{product.price}
+            R{product.price}{product.unit ? ` / ${product.unit}` : ''}
           </span>
         </div>
       </div>
 
       <div className="p-5 flex flex-col flex-grow">
-        <div className="flex items-center gap-1 text-amber-500 mb-2">
-          <Star size={14} fill="currentColor" />
-          <span className="text-xs font-bold">{product.rating}</span>
-          <span className="text-xs text-secondary-400">({product.reviewCount} reviews)</span>
-        </div>
-        <h3 className="font-bold text-secondary-900 mb-2 group-hover:text-primary-600 transition-colors line-clamp-1">
+        {product.rating > 0 && (
+          <div className="flex items-center gap-1 text-amber-500 mb-2">
+            <Star size={14} fill="currentColor" />
+            <span className="text-xs font-bold">{product.rating}</span>
+            <span className="text-xs text-secondary-400">({product.reviewCount} reviews)</span>
+          </div>
+        )}
+        <h3 className="font-bold text-secondary-900 mb-1 group-hover:text-primary-600 transition-colors line-clamp-1">
           {product.name}
         </h3>
+        {product.farmerName && (
+          <p className="text-xs text-secondary-400 mb-2">Sold by {product.farmerName}</p>
+        )}
         <p className="text-sm text-secondary-500 mb-6 line-clamp-2 flex-grow">
           {product.description}
         </p>
-        <button
-          onClick={handleAddToCart}
-          className="w-full btn-primary flex items-center justify-center gap-2 py-3"
-        >
-          <Plus size={18} />
-          Add to Cart
-        </button>
+        {canShop ? (
+          <button
+            onClick={handleAddToCart}
+            className="w-full btn-primary flex items-center justify-center gap-2 py-3"
+          >
+            <Plus size={18} />
+            Add to Cart
+          </button>
+        ) : (
+          <div className="w-full py-3 text-center text-sm font-medium text-secondary-400 border border-secondary-200 rounded-lg">
+            View details
+          </div>
+        )}
       </div>
     </div>
   );

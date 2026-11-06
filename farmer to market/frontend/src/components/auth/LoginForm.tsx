@@ -1,16 +1,15 @@
 import React, { useState } from 'react';
 import { Eye, EyeOff, Loader2 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
-import RoleSelector from './RoleSelector';
 
 interface LoginFormProps {
   onSwitchToRegister: () => void;
+  onClose: () => void;
 }
 
-const LoginForm: React.FC<LoginFormProps> = ({ onSwitchToRegister }) => {
+const LoginForm: React.FC<LoginFormProps> = ({ onSwitchToRegister, onClose }) => {
   const { login } = useAuth();
   const [formData, setFormData] = useState({ email: '', password: '' });
-  const [role, setRole] = useState('buyer');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
@@ -26,9 +25,15 @@ const LoginForm: React.FC<LoginFormProps> = ({ onSwitchToRegister }) => {
 
     setIsLoading(true);
     try {
-      await login(formData.email, formData.password, role as any);
-    } catch (err) {
-      setError('Invalid email or password. Please try again.');
+      await login(formData.email, formData.password);
+      onClose();
+    } catch (err: any) {
+      const message =
+        err?.response?.data?.message ||
+        (err?.code === 'ERR_NETWORK'
+          ? 'Cannot reach the server. Is the backend running?'
+          : 'Invalid email or password. Please try again.');
+      setError(message);
     } finally {
       setIsLoading(false);
     }
@@ -36,7 +41,6 @@ const LoginForm: React.FC<LoginFormProps> = ({ onSwitchToRegister }) => {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-5">
-      <RoleSelector selectedRole={role} onRoleChange={setRole} />
       <div>
         <label className="block text-sm font-medium text-secondary-700 mb-1.5">Email Address</label>
         <input
@@ -52,7 +56,6 @@ const LoginForm: React.FC<LoginFormProps> = ({ onSwitchToRegister }) => {
       <div>
         <div className="flex justify-between items-center mb-1.5">
           <label className="text-sm font-medium text-secondary-700">Password</label>
-          <a href="#" className="text-xs text-primary-600 hover:underline font-medium">Forgot password?</a>
         </div>
         <div className="relative">
           <input

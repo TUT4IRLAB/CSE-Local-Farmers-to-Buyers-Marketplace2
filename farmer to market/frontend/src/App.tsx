@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import { CartProvider } from './context/CartContext';
 import { ProductProvider } from './context/ProductContext';
@@ -22,12 +22,12 @@ const Home = () => (
       <div className="relative z-10 max-w-2xl">
         <h1 className="text-4xl md:text-6xl font-bold mb-6">Fresh From the Farm, Delivered to Your Door</h1>
         <p className="text-lg opacity-90 mb-8">Support local farmers and enjoy the healthiest, organic produce grown with love and care.</p>
-        <button className="bg-white text-primary-700 px-8 py-3 rounded-full font-bold hover:bg-secondary-100 transition-colors">
+        <Link to="/products" className="inline-block bg-white text-primary-700 px-8 py-3 rounded-full font-bold hover:bg-secondary-100 transition-colors">
           Shop Now
-        </button>
+        </Link>
       </div>
       <div className="absolute right-0 bottom-0 w-1/2 h-full opacity-20 hidden md:block">
-        <img src="https://images.unsplash.com/photo-1464226184884-fa280b8f7356?auto=format&fit=crop&q=80&w=800" className="w-full h-full object-cover" alt="farm" />
+        <img src="https://images.unsplash.com/photo-1500937386664-56d1dfef3854?auto=format&fit=crop&q=80&w=800" className="w-full h-full object-cover" alt="farm" />
       </div>
     </div>
     <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
@@ -73,7 +73,13 @@ const FarmerRoute = ({ children }: { children: React.ReactNode }) => {
 
 function App() {
   const [isAuthOpen, setIsAuthOpen] = useState(false);
+  const [authView, setAuthView] = useState<'login' | 'register'>('login');
   const [isCartOpen, setIsCartOpen] = useState(false);
+
+  const openAuth = (view: 'login' | 'register') => {
+    setAuthView(view);
+    setIsAuthOpen(true);
+  };
 
   return (
     <AuthProvider>
@@ -81,7 +87,11 @@ function App() {
         <ProductProvider>
           <Router>
             <div className="min-h-screen flex flex-col">
-              <Header onAuthOpen={() => setIsAuthOpen(true)} onCartOpen={() => setIsCartOpen(true)} />
+              <Header
+                onAuthOpen={() => { setAuthView('login'); setIsAuthOpen(true); }}
+                onRegisterOpen={() => { setAuthView('register'); setIsAuthOpen(true); }}
+                onCartOpen={() => setIsCartOpen(true)}
+              />
               <main className="flex-grow">
                 <Routes>
                   <Route path="/" element={<Home />} />
@@ -101,7 +111,7 @@ function App() {
                 </Routes>
               </main>
               <Footer />
-              <AuthModal isOpen={isAuthOpen} onClose={() => setIsAuthOpen(false)} />
+              <AuthModal isOpen={isAuthOpen} onClose={() => setIsAuthOpen(false)} initialView={authView} />
               <CartDrawer isOpen={isCartOpen} onClose={() => setIsCartOpen(false)} />
             </div>
           </Router>

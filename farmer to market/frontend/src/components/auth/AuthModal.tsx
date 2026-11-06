@@ -6,10 +6,15 @@ import RegisterForm from './RegisterForm';
 interface AuthModalProps {
   isOpen: boolean;
   onClose: () => void;
+  initialView?: 'login' | 'register';
 }
 
-const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
-  const [view, setView] = useState<'login' | 'register'>('login');
+const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, initialView = 'login' }) => {
+  const [view, setView] = useState<'login' | 'register'>(initialView);
+
+  React.useEffect(() => {
+    if (isOpen) setView(initialView);
+  }, [isOpen, initialView]);
 
   return (
     <Modal
@@ -21,6 +26,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
       {view === 'login' ? (
         <LoginForm
           onSwitchToRegister={() => setView('register')}
+          onClose={onClose}
         />
       ) : (
         <RegisterForm

@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { Star, Minus, Plus, ShoppingCart, ChevronLeft, ChevronRight } from 'lucide-react';
-import { Product, ProductVariant } from '../types';
+import { Product, ProductVariant } from '../../types';
 import { useCart } from '../../context/CartContext';
+import { useAuth } from '../../context/AuthContext';
 
 interface ProductDetailModalProps {
   product: Product;
@@ -11,6 +12,8 @@ interface ProductDetailModalProps {
 
 const ProductDetailModal: React.FC<ProductDetailModalProps> = ({ product, isOpen, onClose }) => {
   const { addToCart } = useCart();
+  const { user, isAuthenticated } = useAuth();
+  const canShop = !isAuthenticated || user?.role === 'buyer';
   const [selectedVariants, setSelectedVariants] = useState<Record<string, string>>({});
   const [quantity, setQuantity] = useState(1);
   const [activeImage, setActiveImage] = useState(0);
@@ -75,23 +78,28 @@ const ProductDetailModal: React.FC<ProductDetailModalProps> = ({ product, isOpen
         <div className="w-full md:w-1/2 p-8 md:p-12 overflow-y-auto">
           <div className="flex items-center gap-2 text-primary-600 font-bold text-sm uppercase tracking-wider mb-2">
             <span className="bg-primary-100 px-2 py-0.5 rounded">{product.category}</span>
+            {product.farmerName && (
+              <span className="text-secondary-500 normal-case tracking-normal">Sold by {product.farmerName}</span>
+            )}
           </div>
           <h2 className="text-3xl font-bold text-secondary-900 mb-4">{product.name}</h2>
 
-          <div className="flex items-center gap-4 mb-6">
-            <div className="flex items-center gap-1 text-amber-500">
-              <Star size={18} fill="currentColor" />
-              <span className="font-bold text-lg">{product.rating}</span>
+          {product.rating > 0 && (
+            <div className="flex items-center gap-4 mb-6">
+              <div className="flex items-center gap-1 text-amber-500">
+                <Star size={18} fill="currentColor" />
+                <span className="font-bold text-lg">{product.rating}</span>
+              </div>
+              <span className="text-secondary-400 text-sm">({product.reviewCount} verified reviews)</span>
             </div>
-            <span className="text-secondary-400 text-sm">({product.reviewCount} verified reviews)</span>
-          </div>
+          )}
 
           <p className="text-secondary-600 leading-relaxed mb-8">
             {product.description}
           </p>
 
           <div className="text-4xl font-bold text-secondary-900 mb-8">
-            R{product.price}
+            R{product.price}{product.unit ? <span className="text-lg font-medium text-secondary-500"> / {product.unit}</span> : null}
           </div>
 
           {/* Variants Selection */}
@@ -119,30 +127,36 @@ const ProductDetailModal: React.FC<ProductDetailModalProps> = ({ product, isOpen
           </div>
 
           {/* Quantity & Add to Cart */}
-          <div className="flex gap-4">
-            <div className="flex items-center bg-secondary-100 rounded-xl p-1 border border-secondary-200">
+          {canShop ? (
+            <div className="flex gap-4">
+              <div className="flex items-center bg-secondary-100 rounded-xl p-1 border border-secondary-200">
+                <button
+                  onClick={() => setQuantity(Math.max(1, quantity - 1))}
+                  className="p-2 hover:bg-white rounded-lg transition-colors"
+                >
+                  <Minus size={18} />
+                </button>
+                <span className="w-12 text-center font-bold text-secondary-900">{quantity}</span>
+                <button
+                  onClick={() => setQuantity(quantity + 1)}
+                  className="p-2 hover:bg-white rounded-lg transition-colors"
+                >
+                  <Plus size={18} />
+                </button>
+              </div>
               <button
-                onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                className="p-2 hover:bg-white rounded-lg transition-colors"
+                onClick={handleAddToCart}
+                className="flex-grow btn-primary py-4 flex items-center justify-center gap-2 text-lg font-bold"
               >
-                <Minus size={18} />
-              </button>
-              <span className="w-12 text-center font-bold text-secondary-900">{quantity}</span>
-              <button
-                onClick={() => setQuantity(quantity + 1)}
-                className="p-2 hover:bg-white rounded-lg transition-colors"
-              >
-                <Plus size={18} />
+                <ShoppingCart size={20} />
+                Add to Cart
               </button>
             </div>
-            <button
-              onClick={handleAddToCart}
-              className="flex-grow btn-primary py-4 flex items-center justify-center gap-2 text-lg font-bold"
-            >
-              <ShoppingCart size={20} />
-              Add to Cart
-            </button>
-          </div>
+          ) : (
+            <div className="bg-secondary-50 border border-secondary-200 rounded-xl p-4 text-center text-sm text-secondary-500">
+              Cart and checkout are available to buyers only.
+            </div>
+          )}
         </div>
       </div>
     </div>

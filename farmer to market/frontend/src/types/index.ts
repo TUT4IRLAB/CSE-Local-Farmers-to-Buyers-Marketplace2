@@ -31,6 +31,23 @@ export interface Product {
   reviewCount: number;
   variants: ProductVariant[];
   createdAt: string;
+  unit?: string;
+  farmerId?: string;
+  farmerName?: string;
+}
+
+// Row returned by the backend /api/orders endpoints (snake_case, totals as strings)
+export interface ApiOrder {
+  id: string;
+  buyer_id?: string;
+  farmer_id?: string;
+  product_id: string;
+  product_name?: string;
+  buyer_name?: string;
+  quantity: number;
+  total_price: string;
+  status: 'pending' | 'approved' | 'fulfilled' | 'cancelled';
+  created_at: string;
 }
 
 export interface ProductVariant {

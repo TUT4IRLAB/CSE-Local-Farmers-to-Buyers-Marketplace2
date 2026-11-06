@@ -5,17 +5,17 @@ export const getProducts = async (req: Request, res: Response) => {
   const { category, search } = req.query;
 
   try {
-    let sql = 'SELECT * FROM products WHERE 1=1';
+    let sql = 'SELECT p.*, u.username AS farmer_name FROM products p LEFT JOIN users u ON p.farmer_id = u.id WHERE 1=1';
     const params: any[] = [];
 
     if (category) {
       params.push(`%${category}%`);
-      sql += ` AND category ILIKE $${params.length}`;
+      sql += ` AND p.category ILIKE $${params.length}`;
     }
 
     if (search) {
       params.push(`%${search}%`);
-      sql += ` AND (name ILIKE $${params.length} OR description ILIKE $${params.length})`;
+      sql += ` AND (p.name ILIKE $${params.length} OR p.description ILIKE $${params.length})`;
     }
 
     const result = await query(sql, params);
@@ -28,7 +28,10 @@ export const getProducts = async (req: Request, res: Response) => {
 export const getProductById = async (req: Request, res: Response) => {
   const { id } = req.params;
   try {
-    const result = await query('SELECT * FROM products WHERE id = $1', [id]);
+    const result = await query(
+      'SELECT p.*, u.username AS farmer_name FROM products p LEFT JOIN users u ON p.farmer_id = u.id WHERE p.id = $1',
+      [id]
+    );
     if (result.rows.length === 0) {
       return res.status(404).json({ message: 'Product not found' });
     }
@@ -82,7 +85,11 @@ export const deleteProduct = async (req: Request, res: Response) => {
       return res.status(404).json({ message: 'Product not found or unauthorized' });
     }
     res.json({ message: 'Product deleted successfully' });
-  } catch (error) {
+  } catch (error: any) {
+    console.error('deleteProduct error:', error);
+    if (error?.code === '23503') {
+      return res.status(400).json({ message: 'Cannot delete this product because it has existing orders.' });
+    }
     res.status(500).json({ message: 'Internal server error' });
   }
 };

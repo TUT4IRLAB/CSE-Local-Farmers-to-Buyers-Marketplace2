@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { User, Farmer, ShoppingCart } from 'lucide-react';
+import { User, ShoppingCart } from 'lucide-react';
 
 interface RoleSelectorProps {
   selectedRole: string;
@@ -17,6 +17,7 @@ const RoleSelector: React.FC<RoleSelectorProps> = ({ selectedRole, onRoleChange 
       {roles.map(role => (
         <button
           key={role.id}
+          type="button"
           onClick={() => onRoleChange(role.id)}
           className={`p-4 rounded-2xl border-2 transition-all text-left flex flex-col gap-3 ${
             selectedRole === role.id
